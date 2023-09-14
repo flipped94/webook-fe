@@ -1,15 +1,17 @@
 <script setup>
 import { ref } from 'vue'
 import Login from '../login/TheLogin.vue'
-import BGConver from '../bgcover/BGConver.vue'
+import BGCover from '../bgcover/BGCover.vue'
 import { useUserStore } from '../../store/user';
 const user = useUserStore()
 const menus = ref([])
 var showLogin = ref(false)
 var signinOrup = ref('signin')
+
 function isSearch() {
   return true
 }
+
 function showAvatar() {
   return user.login
 }
@@ -18,8 +20,12 @@ function handleShowLogin(inorUp) {
   signinOrup.value = inorUp
   showLogin.value = true
 }
+
+const loginDom = ref(null);
 function handleHideLogin() {
   showLogin.value = false
+  console.log(loginDom.value)
+  loginDom.value.closeHeartBeat()
 }
 </script>
 <template>
@@ -64,12 +70,10 @@ function handleHideLogin() {
         </div>
       </div>
     </div>
-    <BGConver :showCover="showLogin" @handleHideLogin="handleHideLogin">
-    </BGConver>
-    <Transition>
-      <Login v-if="showLogin" :signinOrSingup="signinOrup"
-        @handleHideLogin="handleHideLogin"></Login>
-    </Transition>
+    <BGCover :showCover="showLogin" @handleHideLogin="handleHideLogin">
+    </BGCover>
+    <Login ref="loginDom" v-if="showLogin" :signinOrSingup="signinOrup"
+      @handleHideLogin="handleHideLogin"></Login>
   </div>
 </template>
 <style lang="less" scoped>

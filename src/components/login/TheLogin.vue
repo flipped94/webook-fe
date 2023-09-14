@@ -1,5 +1,6 @@
 <script setup>
 import { accountLogin, profile } from '../../network/user'
+import { qrcode, heartbeat } from '../../network/oauth2'
 import { useUserStore } from '../../store/user'
 import { ref } from 'vue'
 const props = defineProps({
@@ -24,6 +25,7 @@ var areacode = ref('+86')
 var isHidePass = ref(true)
 var textOrPass = ref('password')
 var timer = null
+var heartbeattimer = null
 var count = null
 function handleShowPass() {
   isHidePass.value = !isHidePass.value
@@ -67,51 +69,72 @@ function handleAccountLogin() {
     }
   })
 }
-function handlSmsCodeLogin() {}
+function handlSmsCodeLogin() { }
 
-function smsCodeRegister() {}
+function smsCodeRegister() { }
+
+var showWxScan = ref(false)
+var qrcodeSrc = ref('')
+function showWxLogin() {
+  qrcode().then(resp => {
+    if (resp.status == 200 && resp.data) {
+      showWxScan.value = true
+      qrcodeSrc.value = window.URL.createObjectURL(resp.data)
+      if (!heartbeattimer) {
+        heartbeattimer = setInterval(() => {
+          heartbeat(resp.headers.get('X-WX-Heart-Beat')).then(res => {
+            if (res.status == 200 && res.data.data) {
+              clearInterval(heartbeattimer)
+              heartbeattimer = null
+              window.location.reload()
+            }
+          })
+        }, 2000)
+      }
+    }
+  })
+}
+function closeWxSan() {
+  showWxScan.value = false
+  if (heartbeattimer) {
+    clearInterval(heartbeattimer)
+    heartbeattimer = null
+  }
+}
+function closeHeartBeat() {
+  if (heartbeattimer) {
+    clearInterval(heartbeattimer)
+    heartbeattimer = null
+  }
+}
+defineExpose({ closeHeartBeat })
 </script>
 <template>
   <div class="container">
-    <div class="signin">
+    <!-- 非第三方登录 -->
+    <div class="signin" v-if="!showWxScan">
       <div class="sign-header">
         <h1>
-          <span
-            v-if="props.signinOrSingup == 'signin'"
+          <span v-if="props.signinOrSingup == 'signin'"
             :class="{ active: isActive }"
-            @click="handleSigninType(true)"
-            >账号登录</span
-          >
-          <span
-            v-if="props.signinOrSingup == 'signin'"
-            class="sms-signin"
+            @click="handleSigninType(true)">账号登录</span>
+          <span v-if="props.signinOrSingup == 'signin'" class="sms-signin"
             :class="{ active: !isActive }"
+            @click="handleSigninType(false)">验证码登录</span>
+          <span v-if="props.signinOrSingup == 'signup'" class="sms-signin"
             @click="handleSigninType(false)"
-            >验证码登录</span
-          >
-          <span
-            v-if="props.signinOrSingup == 'signup'"
-            class="sms-signin"
-            @click="handleSigninType(false)"
-            style="margin-left: 0px; color: #1c1f21"
-            >快速注册</span
-          >
+            style="margin-left: 0px; color: #1c1f21">快速注册</span>
         </h1>
-        <i class="iconfont icon-close close-btn" @click="$emit('handleHideLogin')"></i>
+        <i class="iconfont icon-close close-btn"
+          @click="$emit('handleHideLogin')"></i>
       </div>
       <div class="sign-body">
         <div v-if="isActive && props.signinOrSingup == 'signin'" class="clearfix">
           <form autocomplete="off">
             <div class="pr">
-              <input
-                class="phone ipt"
-                type="text"
-                v-model="account"
-                maxlength="37"
-                name="phoneOrEmail"
-                placeholder="请输入手机号/邮箱"
-                autocomplete="off"
-              />
+              <input class="phone ipt" type="text" v-model="account"
+                maxlength="37" name="phoneOrEmail" placeholder="请输入手机号/邮箱"
+                autocomplete="off" />
               <p class="error-account"></p>
             </div>
             <div class="pr">
@@ -119,15 +142,9 @@ function smsCodeRegister() {}
                 <i class="iconfont icon-hide" v-if="isHidePass"></i>
                 <i class="iconfont icon-show" v-else></i>
               </span>
-              <input
-                class="email ipt"
-                :type="textOrPass"
-                v-model="password"
-                maxlength="37"
-                name="password"
-                placeholder="请输入密码"
-                autocomplete="off"
-              />
+              <input class="email ipt" :type="textOrPass" v-model="password"
+                maxlength="37" name="password" placeholder="请输入密码"
+                autocomplete="off" />
               <p class="error-account"></p>
             </div>
             <p class="global-error"></p>
@@ -140,50 +157,28 @@ function smsCodeRegister() {}
           <form autocomplete="off">
             <div class="pr">
               <div class="areacode">{{ areacode }}</div>
-              <input
-                id="sms_login_phnoe"
-                class="phone ipt"
-                type="text"
-                maxlength="11"
-                name="phone"
-                v-model="phone"
-                placeholder="短信登录仅限中国大陆用户"
-                autocomplete="off"
-              />
+              <input id="sms_login_phnoe" class="phone ipt" type="text"
+                maxlength="11" name="phone" v-model="phone"
+                placeholder="短信登录仅限中国大陆用户" autocomplete="off" />
               <p class="error-account"></p>
             </div>
             <div class="pr">
-              <input
-                class="sms ipt"
-                :type="textOrPass"
-                v-model="loginSmsCode"
-                maxlength="6"
-                name="smscode"
-                placeholder="请输入短信验证码"
-                autocomplete="off"
-              />
+              <input class="sms ipt" :type="textOrPass" v-model="loginSmsCode"
+                maxlength="6" name="smscode" placeholder="请输入短信验证码"
+                autocomplete="off" />
               <p class="req-code" @click="sendLoginSmsCode">
-                <span style="cursor: pointer" v-if="isCanSend">{{ reqLoginSmsCode }}</span>
+                <span style="cursor: pointer" v-if="isCanSend">{{ reqLoginSmsCode
+                }}</span>
                 <span v-else style="color: #9199a1">{{ reqLoginSmsCode }}</span>
               </p>
               <p class="error-account"></p>
             </div>
             <p class="global-error"></p>
             <div class="login-btn clearfix">
-              <input
-                v-if="props.signinOrSingup == 'signin'"
-                type="button"
-                value="登录"
-                class="btn-full"
-                @click="handlSmsCodeLogin"
-              />
-              <input
-                v-if="props.signinOrSingup == 'signup'"
-                type="button"
-                value="立即注册"
-                class="btn-full"
-                @click="smsCodeRegister"
-              />
+              <input v-if="props.signinOrSingup == 'signin'" type="button"
+                value="登录" class="btn-full" @click="handlSmsCodeLogin" />
+              <input v-if="props.signinOrSingup == 'signup'" type="button"
+                value="立即注册" class="btn-full" @click="smsCodeRegister" />
             </div>
           </form>
         </div>
@@ -192,10 +187,26 @@ function smsCodeRegister() {}
         <div class="third-party">
           <span class="third-party-span">扫码登录</span>
         </div>
-        <div class="third-parties clearfix">
+        <div @click="showWxLogin" class="third-parties clearfix">
           <span class="weixin">
             <i class="iconfont icon-wechat"></i>
           </span>
+        </div>
+      </div>
+    </div>
+    <!-- 第三方登录 -->
+    <div class="signin" v-if="showWxScan" id="wechatscan">
+      <div class="sign-header"
+        style="display: flex; align-items: center;justify-content: center;padding-bottom: 0px;">
+        <h1>
+          <span>微信扫码关注公众号登录</span>
+        </h1>
+        <i class="iconfont icon-close close-btn" @click="closeWxSan"
+          style="padding-top: 10px;"></i>
+      </div>
+      <div class="sign-body">
+        <div class="clearfix">
+          <img :src="qrcodeSrc" style="height: 320px;">
         </div>
       </div>
     </div>
@@ -286,6 +297,7 @@ function smsCodeRegister() {}
   width: 17px;
   height: 17px;
   font-size: 25px;
+  padding-bottom: 0px;
   cursor: pointer;
 }
 

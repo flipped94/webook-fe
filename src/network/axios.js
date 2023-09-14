@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { useUserStore } from '../store/user'
-const BASE_URL = 'http://live.webook.com:8081'
+const BASE_URL = 'http://live.webook.com'
 export function request() {
   const user = useUserStore()
   var instance

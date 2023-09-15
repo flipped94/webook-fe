@@ -3,6 +3,7 @@ import { accountLogin, profile } from '../../network/user'
 import { qrcode, heartbeat } from '../../network/oauth2'
 import { useUserStore } from '../../store/user'
 import { ref } from 'vue'
+import { defineEmits } from 'vue'
 const props = defineProps({
   signinOrSingup: {
     type: String,
@@ -74,10 +75,12 @@ function handlSmsCodeLogin() { }
 function smsCodeRegister() { }
 
 var showWxScan = ref(false)
+var showLogin = ref(true)
 var qrcodeSrc = ref('')
+const emit = defineEmits(['handleHideLogin'])
 function showWxLogin() {
   qrcode().then(resp => {
-    if (resp.status == 200 && resp.data) {
+    if (resp.status == 200 && resp.data && resp.headers.get('X-WX-Heart-Beat')) {
       showWxScan.value = true
       qrcodeSrc.value = window.URL.createObjectURL(resp.data)
       if (!heartbeattimer) {
@@ -86,7 +89,7 @@ function showWxLogin() {
             if (res.status == 200 && res.data.data) {
               clearInterval(heartbeattimer)
               heartbeattimer = null
-              window.location.reload()
+              emit('handleHideLogin')
             }
           })
         }, 2000)
@@ -110,7 +113,7 @@ function closeHeartBeat() {
 defineExpose({ closeHeartBeat })
 </script>
 <template>
-  <div class="container">
+  <div class="container" v-if="showLogin">
     <!-- 非第三方登录 -->
     <div class="signin" v-if="!showWxScan">
       <div class="sign-header">

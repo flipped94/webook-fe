@@ -24,7 +24,6 @@ function handleShowLogin(inorUp) {
 const loginDom = ref(null);
 function handleHideLogin() {
   showLogin.value = false
-  console.log(loginDom.value)
   loginDom.value.closeHeartBeat()
 }
 </script>
